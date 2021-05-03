@@ -1152,7 +1152,7 @@ function EnvOpt($needUpdate = 0)
                 }
                 foreach ($disktags as $disktag) {
                     $d = getConfig($disktag);
-                    if ($d === '') {
+                    if ($d == '') {
                         $d = '';
                     } elseif (gettype($d)=='array') {
                         $tmp[$disktag] = $d;
@@ -1169,7 +1169,7 @@ function EnvOpt($needUpdate = 0)
                 $c = splitlast($c, '}')[0] . '}';
                 $tmp = json_decode($c, true);
                 if (!!!$tmp) return output("{\"Error\": \"Config input error. " . $c . "\"}", 403);
-                $tmptag = $tmp['disktag'];
+                if (isset($tmp['disktag'])) $tmptag = $tmp['disktag'];
                 foreach ($EnvConfigs as $env => $v) {
                     if (isCommonEnv($env)) {
                         if (isShowedEnv($env)) {
@@ -1179,11 +1179,11 @@ function EnvOpt($needUpdate = 0)
                         }
                     }
                 }
-                foreach ($disktags as $disktag) {
-                    if (!isset($tmp[$disktag])) $tmp[$disktag] = '';
+                if ($disktags) foreach ($disktags as $disktag) {
+                    if ($disktag!=''&&!isset($tmp[$disktag])) $tmp[$disktag] = '';
                 }
-                $tmp['disktag'] = $tmptag;
-                $response = setConfigResponse( setConfig($tmp, $_SERVER['disk_oprating']) );
+                if ($tmptag) $tmp['disktag'] = $tmptag;
+                $response = setConfigResponse( setConfig($tmp) );
                 if (api_error($response)) {
                     return output("{\"Error\": \"" . api_error_msg($response) . "\"}", 500);
                 } else {
@@ -1222,7 +1222,7 @@ function EnvOpt($needUpdate = 0)
     $html .= '
 <a href="' . $preurl . '">' . getconstStr('Back') . '</a><br>
 ';
-    if (isset($_GET['frame'])&&$_GET['frame']=='platform') {
+    if ($_GET['setup']==='platform') {
         $frame .= '
 <table border=1 width=100%>
     <form name="common" action="" method="post">';
@@ -1275,8 +1275,8 @@ function EnvOpt($needUpdate = 0)
         <tr><td><input type="submit" name="submit1" value="' . getconstStr('Setup') . '"></td><td></td></tr>
     </form>
 </table><br>';
-    } elseif (isset($_GET['frame'])&&in_array($_GET['frame'], $disktags)) {
-        $disktag = $_GET['frame'];
+    } elseif (isset($_GET['disktag'])&&in_array($_GET['disktag'], $disktags)) {
+        $disktag = $_GET['disktag'];
         $disk_tmp = null;
         $diskok = driveisfine($disktag, $disk_tmp);
         $frame .= '
@@ -1290,6 +1290,22 @@ function EnvOpt($needUpdate = 0)
             </form>
         </td>
     </tr>
+</table><br>
+<table>
+<tr>
+    <td>
+        <form action="" method="post" style="margin: 0" onsubmit="return deldiskconfirm(this);">
+            <input type="hidden" name="disktag_del" value="' . $disktag . '">
+            <input type="submit" name="submit1" value="' . getconstStr('DelDisk') . '">
+        </form>
+    </td>
+    <td>
+        <form action="" method="post" style="margin: 0" onsubmit="return cpdiskconfirm(this);">
+            <input type="hidden" name="disktag_copy" value="' . $disktag . '">
+            <input type="submit" name="submit1" value="' . getconstStr('CopyDisk') . '">
+        </form>
+    </td>
+</tr>
 </table>
 <table border=1 width=100%>
     <tr>
@@ -1310,7 +1326,7 @@ function EnvOpt($needUpdate = 0)
         <td>' . getConfig($ext_env, $disktag) . '</td>
     </tr>';
             }
-            
+
             $frame .= '
 <form name="' . $disktag . '" action="" method="post">
     <input type="hidden" name="disk" value="' . $disktag . '">';
@@ -1331,23 +1347,8 @@ function EnvOpt($needUpdate = 0)
 </tr>';
         }
         $frame .= '
-</table><br>
-<table>
-<tr>
-    <td>
-        <form action="" method="post" style="margin: 0" onsubmit="return deldiskconfirm(this);">
-            <input type="hidden" name="disktag_del" value="' . $disktag . '">
-            <input type="submit" name="submit1" value="' . getconstStr('DelDisk') . '">
-        </form>
-    </td>
-    <td>
-        <form action="" method="post" style="margin: 0" onsubmit="return cpdiskconfirm(this);">
-            <input type="hidden" name="disktag_copy" value="' . $disktag . '">
-            <input type="submit" name="submit1" value="' . getconstStr('CopyDisk') . '">
-        </form>
-    </td>
-</tr>
 </table>
+
 <script>
     function deldiskconfirm(t) {
         var msg="' . getconstStr('Delete') . ' ??";
@@ -1382,27 +1383,8 @@ function EnvOpt($needUpdate = 0)
     }
 </script>';
     } else {
-        $_GET['frame'] = 'home';
+        //$_GET['disktag'] = '';
         $Driver_arr = scandir(__DIR__ . $slash . 'disk');
-        $frame .= '
-<select name="DriveType" onchange="changedrivetype(this.options[this.options.selectedIndex].value)">';
-        foreach ($Driver_arr as $v1) {
-            if ($v1!='.' && $v1!='..') {
-                //$v1 = substr($v1, 0, -4);
-                $v1 = splitlast($v1, '.php')[0];
-                $frame .= '
-    <option value="' . $v1 . '"' . ($v1=='Onedrive'?' selected="selected"':'') . '>' . $v1 . '</option>';
-            }
-        }
-        $frame .= '
-</select>
-<a id="AddDisk_link" href="?AddDisk=Onedrive">' . getconstStr('AddDisk') . '</a>
-<script>
-    function changedrivetype(d) {
-        document.getElementById(\'AddDisk_link\').href="?AddDisk=" + d;
-    }
-</script>
-<br><br>';
         if (count($disktags)>1) {
             $frame .= '
 <script src="//cdn.bootcss.com/Sortable/1.8.3/Sortable.js"></script>
@@ -1478,6 +1460,24 @@ function EnvOpt($needUpdate = 0)
     });
 </script><br>';
         }
+        $frame .= '
+<select name="DriveType" onchange="changedrivetype(this.options[this.options.selectedIndex].value)">';
+        foreach ($Driver_arr as $v1) {
+            if ($v1!='.' && $v1!='..') {
+                //$v1 = substr($v1, 0, -4);
+                $v2 = splitlast($v1, '.php')[0];
+                if ($v2 . '.php'==$v1) $frame .= '
+    <option value="' . $v2 . '"' . ($v2=='Onedrive'?' selected="selected"':'') . '>' . $v2 . '</option>';
+            }
+        }
+        $frame .= '
+</select>
+<a id="AddDisk_link" href="?AddDisk=Onedrive">' . getconstStr('AddDisk') . '</a><br><br>
+<script>
+    function changedrivetype(d) {
+        document.getElementById(\'AddDisk_link\').href="?AddDisk=" + d;
+    }
+</script>';
 
         $canOneKeyUpate = 0;
         if (isset($_SERVER['USER'])&&$_SERVER['USER']==='qcloud') {
@@ -1580,12 +1580,18 @@ function EnvOpt($needUpdate = 0)
         <button name="config_b" value="import" onclick="importConfig(this);">import</button></td>
     </tr>
     </form>
-</table>
+</table><br>
 <script>
     var config_f = document.getElementById("config_f");
     function exportConfig(b) {
         if (config_f.pass.value=="") {
             alert("admin pass");
+            return false;
+        }
+        try {
+            sha1(1);
+        } catch {
+            alert("sha1.js not loaded.");
             return false;
         }
         var timestamp = new Date().getTime();
@@ -1625,6 +1631,12 @@ function EnvOpt($needUpdate = 0)
                 return false;
             }
         }
+        try {
+            sha1(1);
+        } catch {
+            alert("sha1.js not loaded.");
+            return false;
+        }
         var timestamp = new Date().getTime();
         var xhr = new XMLHttpRequest();
         xhr.open("POST", "");
@@ -1656,12 +1668,18 @@ function EnvOpt($needUpdate = 0)
             alert("Input twice new password");
             return false;
         }
+        try {
+            sha1(1);
+        } catch {
+            alert("sha1.js not loaded.");
+            return false;
+        }
         var timestamp = new Date().getTime();
         f.timestamp.value = timestamp;
         f.oldPass.value = sha1(f.oldPass.value + "" + timestamp);
         return true;
     }
-</script><br>';
+</script>';
     }
     $html .= '
 <style type="text/css">
@@ -1669,20 +1687,22 @@ function EnvOpt($needUpdate = 0)
 </style>
 <table border=0>
     <tr class="tabs">';
-    if ($_GET['frame']=='home') $html .= '
-    <td>' . getconstStr('Home') . '</td>';
-    else $html .= '
-    <td><a href="?setup&frame=home">' . getconstStr('Home') . '</a></td>';
-    if ($_GET['frame']=='platform') $html .= '
-    <td>' . getconstStr('PlatformConfig') . '</td>';
-    else $html .= '
-    <td><a href="?setup&frame=platform">' . getconstStr('PlatformConfig') . '</a></td>';
+    if ($_GET['disktag']=='') {
+        if ($_GET['setup']==='platform') $html .= '
+        <td><a href="?setup">' . getconstStr('Home') . '</a></td>
+        <td>' . getconstStr('PlatformConfig') . '</td>';
+        else $html .= '
+        <td>' . getconstStr('Home') . '</td>
+        <td><a href="?setup=platform">' . getconstStr('PlatformConfig') . '</a></td>';
+    } else $html .= '
+        <td><a href="?setup">' . getconstStr('Home') . '</a></td>
+        <td><a href="?setup=platform">' . getconstStr('PlatformConfig') . '</a></td>';
     foreach ($disktags as $disktag) {
         if ($disktag!='') {
-            if ($_GET['frame']==$disktag) $html .= '
-            <td>' . $disktag . '</td>';
+            if ($_GET['disktag']==$disktag) $html .= '
+        <td>' . $disktag . '</td>';
             else $html .= '
-            <td><a href="?setup&frame=' . $disktag . '">' . $disktag . '</a></td>';
+        <td><a href="?setup&disktag=' . $disktag . '">' . $disktag . '</a></td>';
         }
     }
     $html .= '
@@ -2104,11 +2124,11 @@ function render_list($path = '', $files = [])
                 $html = str_replace('<!--Is'.$ext.'FileEnd-->', '', $html);
             }
             //while (strpos($html, '<!--FileDownUrl-->')) $html = str_replace('<!--FileDownUrl-->', $files['url'], $html);
-            while (strpos($html, '<!--FileDownUrl-->')) $html = str_replace('<!--FileDownUrl-->', path_format($_SERVER['base_disk_path'] . '/' . $path), $html);
-            while (strpos($html, '<!--FileEncodeReplaceUrl-->')) $html = str_replace('<!--FileEncodeReplaceUrl-->', path_format($_SERVER['base_disk_path'] . '/' . $path), $html);
+            while (strpos($html, '<!--FileDownUrl-->')) $html = str_replace('<!--FileDownUrl-->', path_format(encode_str_replace($_SERVER['base_disk_path'] . '/' . $path)), $html);
+            while (strpos($html, '<!--FileEncodeReplaceUrl-->')) $html = str_replace('<!--FileEncodeReplaceUrl-->', path_format(encode_str_replace($_SERVER['base_disk_path'] . '/' . $path)), $html);
             while (strpos($html, '<!--FileName-->')) $html = str_replace('<!--FileName-->', $files['name'], $html);
-            //$html = str_replace('<!--FileEncodeDownUrl-->', urlencode($files['url']), $html);
-            while (strpos($html, '<!--FileEncodeDownUrl-->')) $html = str_replace('<!--FileEncodeDownUrl-->', urlencode(path_format($_SERVER['base_disk_path'] . '/' . $path)), $html);
+            while (strpos($html, '<!--FileEncodeDownUrl-->')) $html = str_replace('<!--FileEncodeDownUrl-->', urlencode($files['url']), $html);
+            //while (strpos($html, '<!--FileEncodeDownUrl-->')) $html = str_replace('<!--FileEncodeDownUrl-->', urlencode(path_format($_SERVER['base_disk_path'] . '/' . $path)), $html);
             $html = str_replace('<!--constStr@ClicktoEdit-->', getconstStr('ClicktoEdit'), $html);
             $html = str_replace('<!--constStr@CancelEdit-->', getconstStr('CancelEdit'), $html);
             $html = str_replace('<!--constStr@Save-->', getconstStr('Save'), $html);
@@ -2155,7 +2175,7 @@ function render_list($path = '', $files = [])
                 if ($file['type']=='folder') {
                     if ($_SERVER['admin'] or !isHideFile($file['name'])) {
                         $filenum++;
-                        $FolderListStr = str_replace('<!--FileEncodeReplaceUrl-->', path_format($_SERVER['base_disk_path'] . '/' . $path . '/' . encode_str_replace($file['name'])), $FolderList);
+                        $FolderListStr = str_replace('<!--FileEncodeReplaceUrl-->', path_format(encode_str_replace($_SERVER['base_disk_path'] . '/' . $path . '/' . $file['name'])), $FolderList);
                         $FolderListStr = str_replace('<!--FileId-->', $file['id'], $FolderListStr);
                         $FolderListStr = str_replace('<!--FileEncodeReplaceName-->', str_replace('&','&amp;', $file['showname']?$file['showname']:$file['name']), $FolderListStr);
                         $FolderListStr = str_replace('<!--lastModifiedDateTime-->', time_format($file['time']), $FolderListStr);
@@ -2177,7 +2197,7 @@ function render_list($path = '', $files = [])
                         $filenum++;
                         $ext = strtolower(substr($file['name'], strrpos($file['name'], '.') + 1));
                         $FolderListStr = $FolderList;
-                        while (strpos($FolderListStr, '<!--FileEncodeReplaceUrl-->')) $FolderListStr = str_replace('<!--FileEncodeReplaceUrl-->', path_format($_SERVER['base_disk_path'] . '/' . $path . '/' . encode_str_replace($file['name'])), $FolderListStr);
+                        while (strpos($FolderListStr, '<!--FileEncodeReplaceUrl-->')) $FolderListStr = str_replace('<!--FileEncodeReplaceUrl-->', path_format(encode_str_replace($_SERVER['base_disk_path'] . '/' . $path . '/' . $file['name'])), $FolderListStr);
                         $FolderListStr = str_replace('<!--FileExt-->', $ext, $FolderListStr);
                         if (in_array($ext, $exts['music'])) $FolderListStr = str_replace('<!--FileExtType-->', 'audio', $FolderListStr);
                         elseif (in_array($ext, $exts['video'])) $FolderListStr = str_replace('<!--FileExtType-->', 'iframe', $FolderListStr);
@@ -2363,7 +2383,7 @@ function render_list($path = '', $files = [])
                 $folder1 = $tmp1[0];
                 if ($folder1!='') {
                     $tmp_url .= $folder1 . '/';
-                    $PathArrayStr1 = str_replace('<!--PathArrayLink-->', ($folder1==$files['name']?'':$tmp_url), $PathArrayStr);
+                    $PathArrayStr1 = str_replace('<!--PathArrayLink-->', encode_str_replace($folder1==$files['name']?'':$tmp_url), $PathArrayStr);
                     $PathArrayStr1 = str_replace('<!--PathArrayName-->', $folder1, $PathArrayStr1);
                     $html .= $PathArrayStr1;
                 }
@@ -2384,7 +2404,7 @@ function render_list($path = '', $files = [])
                 $folder1 = $tmp1[0];
                 if ($folder1!='') {
                     $tmp_url .= $folder1 . '/';
-                    $PathArrayStr1 = str_replace('<!--PathArrayLink-->', ($folder1==$files['name']?'':$tmp_url), $PathArrayStr);
+                    $PathArrayStr1 = str_replace('<!--PathArrayLink-->', encode_str_replace($folder1==$files['name']?'':$tmp_url), $PathArrayStr);
                     $PathArrayStr1 = str_replace('<!--PathArrayName-->', ($folder1==$_SERVER['disktag']?(getConfig('diskname')==''?$_SERVER['disktag']:getConfig('diskname')):$folder1), $PathArrayStr1);
                     $html .= $PathArrayStr1;
                 }
